@@ -235,7 +235,7 @@ LANE_WIDTH = SCREEN_WIDTH // 3
 LANES = [LANE_WIDTH // 2, SCREEN_WIDTH // 2, SCREEN_WIDTH - LANE_WIDTH // 2]
 
 LEVEL_1_TIME = 600
-LEVEL_1_DISTANCE = 2000
+LEVEL_1_DISTANCE = 1500
 
 LEVEL_2_TIME = 600
 LEVEL_2_DISTANCE = 1000 
@@ -243,16 +243,13 @@ GRID_ROOMS = 3
 ROOM_EDGE_THRESHOLD = 20
 
 LEVEL_3_TIME = 600
-LEVEL_3_DISTANCE = 2000
+LEVEL_3_DISTANCE = 1500
 MIN_SPEED_MPH = 20  # Changed from 25
 MAX_SPEED_MPH = 25  # Changed from 30
 SPEED_WARNING_TIME = 300  # 5 seconds
 
 LEVEL_4_TIME = 900
 LEVEL_4_DISTANCE = 1000  
-
-LEVEL_5_TIME = 6600
-LEVEL_5_DISTANCE = 2000 
 
 MAX_INVENTORY_SIZE = 40
 
@@ -1233,7 +1230,7 @@ class Game:
         winning_car.is_winning_car = True
         
         # Place key in center room (1,1)
-        self.key = Key(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, 1, 1)
+        self.key = Key(600, 600, 1, 1)
         
         # Create police cars for each room with specific patrol patterns
         

@@ -138,6 +138,39 @@ try:
 except:
     police_car_img = None
 
+try:
+    empty_img = pygame.image.load("empty.jpeg")
+    empty_img = pygame.transform.scale(empty_img, (180, 360))
+except:
+    empty_img = None
+# Load Level 3 highway background
+try:
+    highway_img = pygame.image.load("highway.png")
+    highway_img = pygame.transform.scale(highway_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+except:
+    highway_img = None
+    pass
+
+try:
+    house_img = pygame.image.load("home.png")
+    house_img = pygame.transform.scale(house_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+except:
+    house_img = None
+    pass
+
+try:
+    wife_img = pygame.image.load("wife.png")
+    wife_img = pygame.transform.scale(wife_img, (80, 100))
+except:
+    wife_img = None
+    pass
+try:
+    glasses_img = pygame.image.load("glasses.png")
+    glasses_img = pygame.transform.scale(glasses_img, (100, 50))
+except:
+    glasses_img = None
+    pass
+
 # -------------------- AUDIO SETUP --------------------
 pygame.mixer.init()
 
@@ -176,32 +209,8 @@ try:
 except:
     pass
 
-# Load Level 3 highway background
-try:
-    highway_img = pygame.image.load("highway.png")
-    highway_img = pygame.transform.scale(highway_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-except:
-    highway_img = None
-    pass
+muted = False  # Global mute state
 
-try:
-    house_img = pygame.image.load("home.png")
-    house_img = pygame.transform.scale(house_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-except:
-    house_img = None
-    pass
-
-try:
-    wife_img = pygame.image.load("wife.png")
-    wife_img = pygame.transform.scale(wife_img, (80, 100))
-except:
-    wife_img = None
-
-try:
-    glasses_img = pygame.image.load("glasses.png")
-    glasses_img = pygame.transform.scale(glasses_img, (100, 50))
-except:
-    glasses_img = None
 # -------------------- COLORS --------------------
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -903,6 +912,37 @@ class Wife:
         return (abs(self.x - player.x) < (self.width + player.width) // 2 and
                 abs(self.y - player.y) < (self.height + player.height) // 2)
     
+# -------------------- DIALOGUE NPC CLASS --------------------
+class DialogueNPC:
+    def __init__(self, x, y, dialogue_lines):
+        self.x = x
+        self.y = y
+        self.width =75
+        self.height = 130
+        self.dialogue_lines = dialogue_lines
+        self.current_line = 0
+        self.showing_dialogue = False
+        self.image = empty_img
+        
+    def draw(self): 
+        if self.image:
+            img_rect = self.image.get_rect(center=(self.x, self.y))
+            screen.blit(self.image, img_rect)
+    
+    def collides_with(self, player):
+        return (abs(self.x - player.x) < (self.width + player.width) // 2 and
+                abs(self.y - player.y) < (self.height + player.height) // 2)
+    
+    def get_current_dialogue(self):
+        if self.current_line < len(self.dialogue_lines):
+            return self.dialogue_lines[self.current_line]
+        return None
+    
+    def next_dialogue(self):
+        self.current_line += 1
+        if self.current_line >= len(self.dialogue_lines):
+            self.current_line = 0  # Loop back to start
+    
 # -------------------- FINAL BOSS CLASS --------------------
 class FinalBoss:
     def __init__(self, rounds=10):
@@ -1105,6 +1145,9 @@ class Game:
         self.has_key = False
         self.message = ""
         self.message_timer = 0
+        self.dialogue_npc = None  
+        self.showing_dialogue = False  
+        self.current_dialogue = ""  
         
         # Level 3 specific
         self.traffic_cars = []
@@ -1253,7 +1296,20 @@ class Game:
             (SCREEN_WIDTH // 2, -100, 2, 2, "down"),
         ], speed=5, room_row=2, room_col=2, start_wait=210)
         self.police_cars.append(police_22)
-    
+
+        dialogue = [
+            "Hey Mr. Landa!",
+            "Looking for your car keys?",
+            "Check this room carefully.",
+            "One of these cars is yours.",
+            "Also I heard your wife took your glasses.",
+            "You'll need to get them back too.",
+            "You better hurry up before ...",
+            "The principal shows up!",
+            "Good luck!"
+        ]
+        self.dialogue_npc = DialogueNPC(900, 635, dialogue)
+
     def show_message(self, text, duration=120):
         self.message = text
         self.message_timer = duration
@@ -1444,6 +1500,14 @@ class Game:
         if self.level == 2:
             if self.player.check_room_transition():
                 pass
+            
+            # Check dialogue NPC collision 
+            if self.dialogue_npc and self.dialogue_npc.collides_with(self.player):
+                if not self.showing_dialogue:
+                    self.showing_dialogue = True
+                    self.current_dialogue = self.dialogue_npc.get_current_dialogue()
+            else:
+                self.showing_dialogue = False
             
             # Check collision with obstacles
             for box in self.collision_boxes:
@@ -1681,6 +1745,9 @@ class Game:
                 if car.room_row == self.player.room_row and car.room_col == self.player.room_col:
                     car.draw()
             
+            if self.dialogue_npc:
+                self.dialogue_npc.draw()
+            
             for police in self.police_cars:
                 if police.room_row == self.player.room_row and police.room_col == self.player.room_col:
                     police.draw()
@@ -1715,6 +1782,20 @@ class Game:
             for coin in self.coins:
                 coin.draw()
 
+        # Draw dialogue if showing (works for all levels)
+        if self.showing_dialogue and self.current_dialogue:
+            box_width = 600
+            box_height = 120
+            box_x = SCREEN_WIDTH // 2 - box_width // 2
+            box_y = SCREEN_HEIGHT - 180
+            
+            pygame.draw.rect(screen, BLACK, (box_x, box_y, box_width, box_height))
+            pygame.draw.rect(screen, WHITE, (box_x, box_y, box_width, box_height), 3)
+            
+            draw_text(self.current_dialogue, font_medium, WHITE, 
+                     SCREEN_WIDTH // 2, box_y + box_height // 2)
+            draw_text("Press SPACE to continue", font_small, LIGHT_GRAY,
+                     SCREEN_WIDTH // 2, box_y + box_height - 20)
             
         if self.invincible_timer == 0 or (self.invincible_timer // 5) % 2 == 0:
             self.player.draw(self.boost_timer > 0)
@@ -1798,7 +1879,10 @@ class Game:
         
         monster_count = self.inventory.count("Monster Energy")
         bagel_count = self.inventory.count("Bagel")
-        
+
+        if self.level == 1:
+            draw_text_left(f"M:{monster_count} B:{bagel_count}", font_small, GREEN, 200, 70)
+
         if self.level == 2:
             key_status = "KEY: ✓" if self.has_key else "KEY: ✗"
             draw_text_left(f"{key_status} | M:{monster_count} B:{bagel_count}", font_small, GREEN, 200, 70)
@@ -1821,6 +1905,15 @@ class Game:
             else:
                 range_text = f"Target: 20-25 MPH"
                 draw_text_left(range_text, font_small, LIGHT_GRAY, 300, 100)
+
+        mute_button_rect = pygame.Rect(SCREEN_WIDTH - 70, 70, 50, 30)
+        pygame.draw.rect(screen, DARK_GRAY, mute_button_rect)
+        pygame.draw.rect(screen, WHITE, mute_button_rect, 2)
+        
+        if muted:
+            draw_text("🔇", font_small, RED, SCREEN_WIDTH - 45, 85)
+        else:
+            draw_text("🔊", font_small, GREEN, SCREEN_WIDTH - 45, 85)
 
         if self.boost_timer > 0:
             boost_text = f"BOOST! {self.boost_timer // 60 + 1}s"
@@ -1975,6 +2068,31 @@ class Game:
         draw_text("Press R to restart or ESC for menu", font_medium, WHITE,
                 SCREEN_WIDTH // 2, 580)
 
+# -------------------- MUTE TOGGLE --------------------
+def toggle_mute():
+    global muted
+    muted = not muted
+    
+    if muted:
+        pygame.mixer.music.set_volume(0)
+        if drink_sound:
+            drink_sound.set_volume(0)
+        if eat_sound:
+            eat_sound.set_volume(0)
+        if pickup_sound:
+            pickup_sound.set_volume(0)
+        if coin_sound:
+            coin_sound.set_volume(0)
+    else:
+        pygame.mixer.music.set_volume(0.1)
+        if drink_sound:
+            drink_sound.set_volume(0.4)
+        if eat_sound:
+            eat_sound.set_volume(0.4)
+        if pickup_sound:
+            pickup_sound.set_volume(0.3)
+        if coin_sound:
+            coin_sound.set_volume(0.3)
 
 # -------------------- LEVEL COUNTDOWN --------------------
 def level_countdown(next_level):
@@ -2129,7 +2247,12 @@ def main_game(level=1, player_state=None):
                     game.use_bagel()
 
                 elif event.key == pygame.K_SPACE:
-                    game.use_boost()
+                    if game.showing_dialogue and game.dialogue_npc:
+                        # Advance dialogue
+                        game.dialogue_npc.next_dialogue()
+                        game.current_dialogue = game.dialogue_npc.get_current_dialogue()
+                    else:
+                        game.use_boost()
 
                 elif event.key == pygame.K_ESCAPE:
                     return 0, None  # go back to menu
@@ -2138,15 +2261,8 @@ def main_game(level=1, player_state=None):
                     shop = Shop3(game)
                     shop.run()
 
-                # Cheats / testing
-                elif event.key == pygame.K_1:
-                    game.distance = game.goal_distance
-                    game.victory = True
-                    game.game_over = True
-
                 elif game.game_over:
                     if event.key == pygame.K_r:
-                        # Restart same level - keep the state from BEFORE this attempt
                         game = Game(level, player_state)
                     elif event.key == pygame.K_ESCAPE:
                         return 0, None
@@ -2158,7 +2274,15 @@ def main_game(level=1, player_state=None):
                         game.victory = True
                         game.game_over = True
 
+                elif event.key == pygame.K_m:
+                    toggle_mute()
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
+
+                mute_button_rect = pygame.Rect(SCREEN_WIDTH - 70, 70, 50, 30)
+                if mute_button_rect.collidepoint(event.pos):
+                    toggle_mute()
+
                 if game.level == 2 and game.key:
                     if (
                         game.key.room_row == game.player.room_row and

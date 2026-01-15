@@ -185,12 +185,23 @@ except:
     pass
 
 try:
-    house_img = pygame.image.load("house.png")
+    house_img = pygame.image.load("home.png")
     house_img = pygame.transform.scale(house_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 except:
     house_img = None
     pass
 
+try:
+    wife_img = pygame.image.load("wife.png")
+    wife_img = pygame.transform.scale(wife_img, (80, 100))
+except:
+    wife_img = None
+
+try:
+    glasses_img = pygame.image.load("glasses.png")
+    glasses_img = pygame.transform.scale(glasses_img, (100, 50))
+except:
+    glasses_img = None
 # -------------------- COLORS --------------------
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -214,19 +225,25 @@ font_small = pygame.font.SysFont(None, 30)
 LANE_WIDTH = SCREEN_WIDTH // 3
 LANES = [LANE_WIDTH // 2, SCREEN_WIDTH // 2, SCREEN_WIDTH - LANE_WIDTH // 2]
 
-LEVEL_1_TIME = 1200
-LEVEL_1_DISTANCE = 1000
+LEVEL_1_TIME = 600
+LEVEL_1_DISTANCE = 2000
 
-LEVEL_2_TIME = 900
-LEVEL_2_DISTANCE = 1000 # NEED IT TO RUN THE GAME BUT NOT USED IN LEVEL 2 LOGIC
+LEVEL_2_TIME = 600
+LEVEL_2_DISTANCE = 1000 
 GRID_ROOMS = 3
 ROOM_EDGE_THRESHOLD = 20
 
-LEVEL_3_TIME = 1200
-LEVEL_3_DISTANCE = 1000
+LEVEL_3_TIME = 600
+LEVEL_3_DISTANCE = 2000
 MIN_SPEED_MPH = 20  # Changed from 25
 MAX_SPEED_MPH = 25  # Changed from 30
 SPEED_WARNING_TIME = 300  # 5 seconds
+
+LEVEL_4_TIME = 900
+LEVEL_4_DISTANCE = 1000  
+
+LEVEL_5_TIME = 6600
+LEVEL_5_DISTANCE = 2000 
 
 MAX_INVENTORY_SIZE = 40
 
@@ -304,7 +321,7 @@ class Player:
             self.room_col = 1
             self.x = SCREEN_WIDTH // 2
             self.y = SCREEN_HEIGHT // 2
-        else:  # Level 3
+        elif level == 3: 
             self.lane = 1
             self.x = LANES[self.lane]
             self.y = SCREEN_HEIGHT - 150
@@ -312,29 +329,34 @@ class Player:
             self.height = 120
             self.mph = 22.5  # Changed from 27.5
             self.image = blue_car_img  # Changed from green_car_img
-        
+        elif level == 4:  
+            self.x = 100
+            self.y = SCREEN_HEIGHT // 2
+            self.width = 70
+            self.height = 90
+    
     def move_left(self):
         if self.level == 1 or self.level == 3:
             if self.lane > 0 and self.move_cooldown == 0:
                 self.lane -= 1
                 self.move_cooldown = 10
                 self.last_dir = "left"
-        else:
+        else:  # level 2 or 4
             self.x -= 8
             self.last_dir = "left"
-                
+
     def move_right(self):
         if self.level == 1 or self.level == 3:
             if self.lane < 2 and self.move_cooldown == 0:
                 self.lane += 1
                 self.move_cooldown = 10
                 self.last_dir = "right"
-        else:
+        else:  # level 2 or 4
             self.x += 8
             self.last_dir = "right"
 
     def move_up(self):
-        if self.level == 2:
+        if self.level == 2 or self.level == 4:  # CHANGE THIS LINE
             self.y -= 8
             self.last_dir = "up"
         elif self.level == 3:
@@ -342,14 +364,13 @@ class Player:
             self.last_dir = "up"
 
     def move_down(self):
-        if self.level == 2:
+        if self.level == 2 or self.level == 4:  # CHANGE THIS LINE
             self.y += 8
             self.last_dir = "down"
         elif self.level == 3:
             self.mph -= 1
             self.last_dir = "down"
 
-            
     def update(self):
         if self.room_transition_cooldown > 0:
             self.room_transition_cooldown -= 1
@@ -858,6 +879,160 @@ class Key:
         mx, my = mouse_pos
         return math.sqrt((self.x - mx)**2 + (self.y - my)**2) < 15
 
+# -------------------- WIFE CLASS --------------------
+class Wife:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 80
+        self.height = 100
+        self.image = wife_img
+        
+    def draw(self):
+        if self.image:
+            img_rect = self.image.get_rect(center=(self.x, self.y))
+            screen.blit(self.image, img_rect)
+        else:
+            # Fallback: pink rectangle
+            pygame.draw.rect(screen, (255, 105, 180), 
+                           (self.x - self.width//2, self.y - self.height//2,
+                            self.width, self.height))
+            draw_text("Wife", font_small, WHITE, self.x, self.y)
+    
+    def collides_with(self, player):
+        return (abs(self.x - player.x) < (self.width + player.width) // 2 and
+                abs(self.y - player.y) < (self.height + player.height) // 2)
+    
+# -------------------- FINAL BOSS CLASS --------------------
+class FinalBoss:
+    def __init__(self, rounds=10):
+        self.rounds = rounds
+        self.current_round = 0
+        self.sequence = []
+        self.player_input = []
+        self.displaying = True
+        self.display_index = 0
+        self.display_timer = 0
+        self.arrow_display_time = 40  # frames to show arrow
+        self.gap_time = 20            # frames of gap between arrows
+        self.in_gap = False           # is it currently a gap?
+        self.completed = False
+        self.show_instructions = True
+        self.instruction_timer = 180  # 3 seconds
+
+    def start_round(self):
+        self.current_round += 1
+        self.sequence = [random.choice(["UP", "DOWN", "LEFT", "RIGHT"]) 
+                        for _ in range(self.current_round)]
+        self.player_input = []
+        self.displaying = True
+        self.display_index = 0
+        self.display_timer = 0
+        self.in_gap = False
+
+    def update(self):
+        if self.completed:
+            return
+
+        if self.show_instructions:
+            self.instruction_timer -= 1
+            if self.instruction_timer <= 0:
+                self.show_instructions = False
+                self.start_round()
+            return
+
+        if self.displaying:
+            self.display_timer += 1
+            if not self.in_gap and self.display_timer >= self.arrow_display_time:
+                # Start gap
+                self.in_gap = True
+                self.display_timer = 0
+            elif self.in_gap and self.display_timer >= self.gap_time:
+                # Move to next arrow
+                self.display_index += 1
+                self.display_timer = 0
+                self.in_gap = False
+                if self.display_index >= len(self.sequence):
+                    self.displaying = False
+
+    def handle_input(self, key):
+        if self.displaying or self.completed or self.show_instructions:
+            return
+
+        arrow_map = {
+            pygame.K_UP: "UP",
+            pygame.K_DOWN: "DOWN",
+            pygame.K_LEFT: "LEFT",
+            pygame.K_RIGHT: "RIGHT"
+        }
+
+        if key in arrow_map:
+            self.player_input.append(arrow_map[key])
+
+            # Check if wrong
+            if self.player_input[-1] != self.sequence[len(self.player_input)-1]:
+                # Wrong! Restart round
+                self.current_round -= 1
+                self.start_round()
+            elif len(self.player_input) == len(self.sequence):
+                # Completed this round!
+                if self.current_round == self.rounds:
+                    self.completed = True
+                else:
+                    self.start_round()
+
+    def draw(self):
+        screen.fill(BLACK)
+
+        if self.show_instructions:
+            draw_text("BOSS BATTLE!", font_large, ORANGE, SCREEN_WIDTH // 2, 150)
+            draw_text("Memorize the arrow sequences", font_medium, WHITE, 
+                     SCREEN_WIDTH // 2, 250)
+            draw_text("and repeat them using arrow keys", font_medium, WHITE, 
+                     SCREEN_WIDTH // 2, 300)
+            draw_text(f"{self.rounds} rounds to win the glasses!", font_medium, GREEN, 
+                     SCREEN_WIDTH // 2, 400)
+            return
+
+        draw_text(f"Round {self.current_round}/{self.rounds}", font_large, WHITE, 
+                 SCREEN_WIDTH // 2, 50)
+
+        arrow_symbols = {"UP": "↑", "DOWN": "↓", "LEFT": "←", "RIGHT": "→"}
+
+        if self.displaying and self.display_index < len(self.sequence):
+            if not self.in_gap:
+                arrow = self.sequence[self.display_index]
+                draw_text(arrow, font_large, ORANGE, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+                draw_text(arrow_symbols[arrow], font_large, ORANGE, 
+                          SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80)
+        elif not self.completed:
+            draw_text("Repeat the sequence!", font_medium, WHITE, 
+                     SCREEN_WIDTH // 2, 200)
+            draw_text(f"Progress: {len(self.player_input)}/{len(self.sequence)}", 
+                     font_small, GREEN, SCREEN_WIDTH // 2, 300)
+
+            # Show input so far
+            if self.player_input:
+                input_text = " ".join([arrow_symbols[a] for a in self.player_input])
+                draw_text(input_text, font_medium, (255, 105, 180), 
+                         SCREEN_WIDTH // 2, 400)
+        else:
+            draw_text("YOU WIN!", font_large, GREEN, SCREEN_WIDTH // 2, 200)
+            draw_text("Wife gives you the GLASSES!", font_medium, ORANGE, 
+                     SCREEN_WIDTH // 2, 300)
+
+            # Draw glasses
+            if glasses_img:
+                img_rect = glasses_img.get_rect(center=(SCREEN_WIDTH // 2, 400))
+                screen.blit(glasses_img, img_rect)
+            else:
+                pygame.draw.ellipse(screen, WHITE, (425, 380, 50, 40), 3)
+                pygame.draw.ellipse(screen, WHITE, (525, 380, 50, 40), 3)
+                pygame.draw.line(screen, WHITE, (475, 400), (525, 400), 3)
+
+            draw_text("Press R to continue", font_small, WHITE, 
+                     SCREEN_WIDTH // 2, 550)
+
 # -------------------- GAME CLASS --------------------
 class Game:
     def __init__(self, level=1, player_state=None):
@@ -890,10 +1065,21 @@ class Game:
         elif level == 2:
             self.game_timer = LEVEL_2_TIME
             self.goal_distance = LEVEL_2_DISTANCE
-        else:  # Level 3
+        elif level == 3:  # Level 3
             self.game_timer = LEVEL_3_TIME
             self.goal_distance = LEVEL_3_DISTANCE
-            
+        elif level == 4: 
+             self.game_timer = LEVEL_4_TIME
+             self.goal_distance = LEVEL_4_DISTANCE
+
+        self.wife = None
+        self.final_boss = None
+        self.boss_active = False
+        self.has_glasses = False
+        
+        if level == 4: 
+            self.setup_level4()
+
         self.start_ticks = pygame.time.get_ticks()
         self.paused = False
         self.invincible_timer = 0
@@ -908,7 +1094,7 @@ class Game:
         self.shield_timer = 0
         
         # Difficulty progression
-        self.difficulty_checkpoints = [250, 500, 750]
+        self.difficulty_checkpoints = [100,200,300,400,500,600,700,800,900]
         self.difficulty_level = 0
         
         # Level 2 specific
@@ -927,7 +1113,9 @@ class Game:
         
         if level == 2:
             self.setup_level2()
-        
+    def setup_level4(self):
+        self.wife = Wife(800,150)
+
     def setup_level2(self):
         storage_boxes = [
             CollisionBox(350, 150, 400, 80, 1, 1),
@@ -1284,6 +1472,17 @@ class Game:
                             self.game_over = True
                             self.victory = False
 
+        # Level 4
+        if self.level == 4:
+            if self.boss_active:
+                self.final_boss.update()
+                if self.final_boss.completed:
+                    self.has_glasses = True
+            elif self.wife and self.wife.collides_with(self.player):  # FIXED - now inside the if block
+                # Start boss battle
+                self.boss_active = True
+                self.final_boss = FinalBoss(rounds=10)
+
         # Update Level 3 traffic cars
         if self.level == 3:
             for traffic_car in self.traffic_cars[:]:
@@ -1389,6 +1588,46 @@ class Game:
             y_offset = self.scroll_offset % SCREEN_HEIGHT
             screen.blit(highway_img, (0, y_offset))
             screen.blit(highway_img, (0, y_offset - SCREEN_HEIGHT))
+        elif self.level == 4:  # LEVEL 4 BEFORE LEVEL 2
+            # Draw house background
+            if house_img:
+                screen.blit(house_img, (0, 0))
+            else:
+                screen.fill((100, 200, 100))  # Green background
+
+            if self.boss_active:
+                self.final_boss.draw()
+            else:
+                # Draw wife
+                if self.wife:
+                    self.wife.draw()
+
+                # Draw player
+                if self.invincible_timer == 0 or (self.invincible_timer // 5) % 2 == 0:
+                    self.player.draw(False)
+
+                # Draw instruction
+                draw_text("Navigate to your wife!", font_medium, WHITE, 
+                        SCREEN_WIDTH // 2, 50)
+            
+            # Draw HUD for level 4 and return
+            self.draw_hud()
+            
+            if self.message_timer > 0:
+                overlay = pygame.Surface((600, 100))
+                overlay.set_alpha(200)
+                overlay.fill(BLACK)
+                screen.blit(overlay, (SCREEN_WIDTH // 2 - 300, SCREEN_HEIGHT // 2 - 50))
+                draw_text(self.message, font_medium, WHITE, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+            
+            if self.paused:
+                self.draw_inventory()
+                
+            if self.game_over:
+                self.draw_game_over()
+            
+            return  # EXIT HERE FOR LEVEL 4
+        
         elif self.level == 2:
             current_room = (self.player.room_row, self.player.room_col)
             room_bg = room_backgrounds.get(current_room)
@@ -1436,7 +1675,7 @@ class Game:
                     label_font = pygame.font.SysFont(None, 18)
                     label = room_labels[row][col]
                     draw_text(label, label_font, BLACK if row == self.player.room_row and col == self.player.room_col else WHITE, 
-                             x + cell_size // 2, y + cell_size // 2)
+                            x + cell_size // 2, y + cell_size // 2)
             
             for car in self.cars:
                 if car.room_row == self.player.room_row and car.room_col == self.player.room_col:
@@ -1461,7 +1700,7 @@ class Game:
             
             for coin in self.coins:
                 coin.draw()
-    
+
         # Level 3 drawing
         if self.level == 3:
             for traffic_car in self.traffic_cars:
@@ -1494,7 +1733,7 @@ class Game:
             
         if self.game_over:
             self.draw_game_over()
-            
+                
     def draw_hud(self):
         hud_surface = pygame.Surface((SCREEN_WIDTH, 100))
         hud_surface.set_alpha(180)
@@ -1506,6 +1745,8 @@ class Game:
             level_color = GREEN
         elif self.level == 3:
             level_color = BLUE
+        elif self.level == 4: 
+            level_color = (255, 105, 180)  # Pink
         else:
             level_color = ORANGE
         draw_text_left(level_text, font_medium, level_color, 20, 10)
@@ -1688,7 +1929,10 @@ class Game:
             elif self.level == 2:
                 draw_text(f"You escaped the parking lot!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
             elif self.level == 3:
-                draw_text(f"YOU FINISHED THE GAME!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
+                draw_text(f"YOU REACHED HOME!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
+            elif self.level == 4: 
+                draw_text(f"YOU GOT THE GLASSES! THANK YOU FOR PLAYING!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
+                
             time_limit = LEVEL_1_TIME if self.level == 1 else (LEVEL_2_TIME if self.level == 2 else LEVEL_3_TIME)
             minutes = int((time_limit - self.game_timer) // 60)
             seconds = int((time_limit - self.game_timer) % 60)
@@ -1699,7 +1943,7 @@ class Game:
             elif self.level == 2:
                 draw_text("Next level is Level 3 (Highway!)", font_medium, BLUE, SCREEN_WIDTH // 2, 370)
             elif self.level == 3:
-                draw_text("All Levels Complete!", font_medium, GOLD, SCREEN_WIDTH // 2, 370)
+                draw_text("Next level is Level 4 (Final Boss!)", font_medium, GOLD, SCREEN_WIDTH // 2, 370)
         else:
             draw_text("GAME OVER", font_large, RED, SCREEN_WIDTH // 2, 200)
             if self.level == 1:
@@ -1717,7 +1961,9 @@ class Game:
                         draw_text("You have been fired!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
                     else:
                         draw_text("You are were in a car crash! (Say your final words)", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
-            
+            elif self.level == 4:
+                draw_text("You failed to get your glasses in time!", font_medium, WHITE, SCREEN_WIDTH // 2, 270)
+
         draw_text(f"Final Score: {self.score}", font_medium, WHITE, 
                 SCREEN_WIDTH // 2, 400)
         draw_text(f"Coins Collected: {self.coin_count}", font_medium, GOLD,
@@ -1775,6 +2021,12 @@ def show_level_instructions(level):
             draw_text("Stay focused and survive the final challenge!", font_small, WHITE, SCREEN_WIDTH // 2, 290)
             draw_text("Win the fight and make it to school on time!", font_small, WHITE, SCREEN_WIDTH // 2, 320)
             draw_text("Press B to use Bagel | S to open Shop", font_small, YELLOW, SCREEN_WIDTH // 2, 350)
+        elif level == 4:  
+            draw_text("LEVEL 4: Get Your Glasses!", font_large, (255, 105, 180), SCREEN_WIDTH // 2, 100)
+            draw_text("GOAL: Navigate to your wife and win the boss battle!", font_medium, WHITE, SCREEN_WIDTH // 2, 150)
+            draw_text("Use ARROW KEYS to move", font_small, WHITE, SCREEN_WIDTH // 2, 200)
+            draw_text("Touch your wife to start the memory challenge", font_small, YELLOW, SCREEN_WIDTH // 2, 230)
+            draw_text("Memorize and repeat arrow sequences for 10 rounds!", font_small, GREEN, SCREEN_WIDTH // 2, 260)
 
         draw_text("Click anywhere to start!", font_medium, WHITE, SCREEN_WIDTH // 2, 500)
         pygame.display.flip()
@@ -1898,6 +2150,13 @@ def main_game(level=1, player_state=None):
                         game = Game(level, player_state)
                     elif event.key == pygame.K_ESCAPE:
                         return 0, None
+                    
+                if game.level == 4 and game.boss_active and not game.game_over:
+                    game.final_boss.handle_input(event.key)
+                    if game.final_boss.completed:
+                        # Boss completed, mark victory
+                        game.victory = True
+                        game.game_over = True
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if game.level == 2 and game.key:
@@ -1970,8 +2229,11 @@ def main_game(level=1, player_state=None):
                 elif level == 2:
                     level_countdown(3)
                     return 3, player_state
-                elif level == 3:
-                    return 0, None
+                elif level == 3:  
+                    level_countdown(4)
+                    return 4, player_state
+                elif level == 4:  
+                    return 0, None  # Game complete!
         else:
             auto_transition_timer = None
 
